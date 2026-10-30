@@ -1,0 +1,35 @@
+name: Build SonyConnect
+
+on:
+  workflow_dispatch:   # lets you start it manually with a button
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Build (Intel + Apple Silicon)
+        run: swift build -c release --arch arm64 --arch x86_64
+
+      - name: Create the .app bundle
+        run: |
+          BIN_DIR=$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)
+          rm -rf SonyConnect.app
+          mkdir -p SonyConnect.app/Contents/MacOS SonyConnect.app/Contents/Resources
+          cp "$BIN_DIR/SonyConnect" SonyConnect.app/Contents/MacOS/
+          cp Resources/Info.plist SonyConnect.app/Contents/
+          cp Resources/AppIcon.icns SonyConnect.app/Contents/Resources/
+          codesign --force --sign - SonyConnect.app
+          lipo -info SonyConnect.app/Contents/MacOS/SonyConnect
+          ditto -c -k --keepParent SonyConnect.app SonyConnect-macOS.zip
+
+      - name: Upload the result
+        uses: actions/upload-artifact@v4
+        with:
+          name: SonyConnect-macOS
+          path: SonyConnect-macOS.zip
